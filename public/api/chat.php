@@ -1,6 +1,6 @@
 <?php
 // api/chat.php
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__ . '/../../vendor/autoload.php';
 
 use Dotenv\Dotenv;
 

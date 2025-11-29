@@ -7,8 +7,24 @@ use Dotenv\Dotenv;
 $dotenv = Dotenv::createImmutable(__DIR__ . '/../..');
 $dotenv->load();
 
-// CORS headers
-header('Access-Control-Allow-Origin: *');
+// CORS headers - Allow requests from Owlbear Rodeo and localhost (for development)
+$allowedOrigins = [
+    'https://www.owlbear.rodeo',
+    'https://owlbear.rodeo',
+    'http://localhost:5173',
+    'http://localhost:4173',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:4173'
+];
+
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($origin, $allowedOrigins)) {
+    header('Access-Control-Allow-Origin: ' . $origin);
+} else {
+    // For production, only allow owlbear.rodeo
+    header('Access-Control-Allow-Origin: https://www.owlbear.rodeo');
+}
+
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, X-API-Key');
 header('Content-Type: application/json');
@@ -16,6 +32,55 @@ header('Content-Type: application/json');
 // Handle preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
+}
+
+// Rate limiting function
+function checkRateLimit($ip) {
+    $rateLimitDir = __DIR__ . '/../uploads/.rate-limits';
+    if (!is_dir($rateLimitDir)) {
+        mkdir($rateLimitDir, 0755, true);
+    }
+
+    $rateLimitFile = $rateLimitDir . '/' . md5($ip) . '.json';
+    $maxRequests = 10; // Maximum requests per time window
+    $timeWindow = 300; // Time window in seconds (5 minutes)
+    $now = time();
+
+    // Load existing rate limit data
+    $data = [];
+    if (file_exists($rateLimitFile)) {
+        $content = file_get_contents($rateLimitFile);
+        $data = json_decode($content, true) ?: [];
+    }
+
+    // Remove old requests outside the time window
+    $data = array_filter($data, function($timestamp) use ($now, $timeWindow) {
+        return ($now - $timestamp) < $timeWindow;
+    });
+
+    // Check if limit exceeded
+    if (count($data) >= $maxRequests) {
+        return false;
+    }
+
+    // Add current request
+    $data[] = $now;
+
+    // Save updated data
+    file_put_contents($rateLimitFile, json_encode($data));
+
+    return true;
+}
+
+// Check rate limit
+$clientIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+if (!checkRateLimit($clientIp)) {
+    http_response_code(429);
+    echo json_encode([
+        'error' => 'Rate limit exceeded. Please try again later.',
+        'retry_after' => 300
+    ]);
+    exit;
 }
 
 // Only allow POST

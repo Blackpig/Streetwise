@@ -18,11 +18,17 @@ $allowedOrigins = [
 ];
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+// Log the origin for debugging (remove this after fixing)
+error_log("Portrait upload request from origin: " . $origin);
+
 if (in_array($origin, $allowedOrigins)) {
     header('Access-Control-Allow-Origin: ' . $origin);
 } else {
-    // For production, only allow owlbear.rodeo
-    header('Access-Control-Allow-Origin: https://www.owlbear.rodeo');
+    // Temporarily allow all origins for debugging CORS issues
+    // TODO: Restrict this after confirming the correct origin
+    header('Access-Control-Allow-Origin: *');
+    error_log("Origin not in allowed list, using wildcard: " . $origin);
 }
 
 header('Access-Control-Allow-Methods: POST, OPTIONS');

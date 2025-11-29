@@ -11,24 +11,25 @@ $dotenv->load();
 $allowedOrigins = [
     'https://www.owlbear.rodeo',
     'https://owlbear.rodeo',
-    'http://localhost:5173',
-    'http://localhost:4173',
+    'http://localhost:3000',     // Owlbear Rodeo local dev
+    'http://localhost:5173',     // Vite dev server
+    'http://localhost:4173',     // Vite preview server
+    'http://127.0.0.1:3000',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:4173'
 ];
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
-// Log the origin for debugging (remove this after fixing)
-error_log("Portrait upload request from origin: " . $origin);
-
 if (in_array($origin, $allowedOrigins)) {
     header('Access-Control-Allow-Origin: ' . $origin);
 } else {
-    // Temporarily allow all origins for debugging CORS issues
-    // TODO: Restrict this after confirming the correct origin
-    header('Access-Control-Allow-Origin: *');
-    error_log("Origin not in allowed list, using wildcard: " . $origin);
+    // Log unrecognized origins for security monitoring
+    error_log("Blocked portrait upload from unauthorized origin: " . $origin);
+    // Don't set CORS header - request will be blocked by browser
+    http_response_code(403);
+    echo json_encode(['error' => 'Origin not allowed']);
+    exit;
 }
 
 header('Access-Control-Allow-Methods: POST, OPTIONS');
